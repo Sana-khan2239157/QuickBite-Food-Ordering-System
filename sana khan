@@ -1,0 +1,393 @@
+import datetime
+
+
+class QuickBiteOrderingSystem:
+    def __init__(self):
+        # Initialize menu with categories and items
+        self.menu = {
+            "Appetizers": {
+                "Spring Rolls": {"price": 5.99, "description": "Crispy rolls stuffed with vegetables"},
+                "Garlic Bread": {"price": 3.99, "description": "Toasted bread with garlic and herbs"},
+            },
+            "Main Course": {
+                "Grilled Chicken": {"price": 12.99, "description": "Served with roasted vegetables and potatoes"},
+                "Pasta Primavera": {"price": 11.99, "description": "Pasta with fresh vegetables in a light sauce"},
+                "Cheeseburger": {"price": 10.49, "description": "Beef burger with cheese, lettuce, and tomato"},
+            },
+            "Desserts": {
+                "Cheesecake": {"price": 6.49, "description": "Classic cheesecake with a graham cracker crust"},
+                "Chocolate Lava Cake": {"price": 7.49, "description": "Warm chocolate cake with a molten center"},
+            },
+            "Beverages": {
+                "Coffee": {"price": 2.99, "description": "Freshly brewed hot coffee"},
+                "Iced Tea": {"price": 2.49, "description": "Chilled tea with a hint of lemon"},
+                "Soft Drink": {"price": 1.99, "description": "Choice of cola, lemon-lime"},
+            }
+        }
+        self.order_list = []  # Stores items in the current order
+        self.order_status = "New"
+        self.discount_available = False
+        self.discount_rate = 0.0
+        self.sales_log = []  # Stores completed orders
+        self.feedback_log = []  # Stores customer feedback
+
+    def main_menu(self):
+        while True:
+            print("\nWelcome to QuickBite!")
+            print("Main Menu Options:")
+            print("1. Browse the Menu")
+            print("2. Place Order")
+            print("3. Automatic Total Calculation")
+            print("4. Order Review and Confirmation")
+            print("5. Billing Receipt Generation")
+            print("6. Admin Interface")
+            print("7. Leave Feedback")
+            print("8. Exit")
+
+            choice = input("Select an option: ").strip()
+
+            if choice == "1":
+                self.display_menu()
+            elif choice == "2":
+                self.place_order()
+            elif choice == "3":
+                self.calculate_total_cost()
+            elif choice == "4":
+                self.review_order()
+            elif choice == "5":
+                self.generate_receipt()
+            elif choice == "6":
+                self.admin_login()
+            elif choice == "7":
+                self.leave_feedback()
+            elif choice == "8":
+                print("Exiting the system. Thank you for choosing QuickBite!")
+                break
+            else:
+                print("Invalid choice, please select a valid option.")
+
+    def display_menu(self):
+        print("\nMenu:")
+        for category, items in self.menu.items():
+            print(f"\n{category}:")
+            for item, details in items.items():
+                print(f"{item} - £{details['price']}: {details['description']}")
+
+    def place_order(self):
+        while True:
+            print("\nPlace your order:")
+            self.display_menu()
+            item_name = input("Select an item (or type 'done' to finish): ").strip()
+            if item_name.lower() == 'done':
+                if self.order_list:
+                    print("Order Summary:")
+                    self.display_order_summary()
+                else:
+                    print("No items in the order.")
+                break
+
+            if item_name in [item for category in self.menu.values() for item in category]:
+                try:
+                    quantity = int(input("Enter quantity: ").strip())
+                    if quantity <= 0:
+                        print("Quantity must be at least 1.")
+                        continue
+                except ValueError:
+                    print("Invalid quantity. Please enter a number.")
+                    continue
+
+                self.add_to_order(item_name, quantity)
+            else:
+                print("Item not available.")
+                continue
+
+            modify_choice = input("Do you want to modify your order? (Yes/No): ").strip().lower()
+            if modify_choice == "yes":
+                item_to_modify = input("Select item to modify: ").strip()
+                if item_to_modify not in [item['name'] for item in self.order_list]:
+                    print("Item not in order.")
+                    continue
+                try:
+                    new_quantity = int(input("Enter new quantity: ").strip())
+                    if new_quantity <= 0:
+                        print("Quantity must be at least 1.")
+                        continue
+                except ValueError:
+                    print("Invalid quantity. Please enter a number.")
+                    continue
+                self.update_order(item_to_modify, new_quantity)
+            else:
+                self.display_order_summary()
+                break
+
+    def add_to_order(self, item_name, quantity):
+        for item in self.order_list:
+            if item['name'] == item_name:
+                item['quantity'] += quantity
+                print(f"Updated {item_name} quantity to {item['quantity']}.")
+                return
+        # If item not already in order, add it
+        for category, items in self.menu.items():
+            if item_name in items:
+                self.order_list.append({
+                    "name": item_name,
+                    "quantity": quantity,
+                    "price": items[item_name]['price']
+                })
+                print("Item added to your order.")
+                return
+        print("Item not available in menu.")
+
+    def update_order(self, item_name, new_quantity):
+        for item in self.order_list:
+            if item['name'] == item_name:
+                item['quantity'] = new_quantity
+                print("Order updated.")
+                return
+        print("Item not in order.")
+
+    def display_order_summary(self):
+        if not self.order_list:
+            print("Your order is empty.")
+            return
+        print("\nOrder Summary:")
+        total_cost = 0
+        for item in self.order_list:
+            item_cost = item['price'] * item['quantity']
+            total_cost += item_cost
+            print(f"{item['name']} x {item['quantity']} - £{item_cost:.2f}")
+        print(f"Total Cost: £{self.calculate_total_cost():.2f}")
+
+    def calculate_total_cost(self):
+        total_cost = sum(item['price'] * item['quantity'] for item in self.order_list)
+        if self.discount_available:
+            total_cost *= (1 - self.discount_rate)
+            print(f"Discount of {self.discount_rate * 100}% applied.")
+        return total_cost
+
+    def review_order(self):
+        if not self.order_list:
+            print("No items in the order to review.")
+            return
+        print("\nOrder Review:")
+        self.display_order_summary()
+        confirmation = input("Do you want to confirm the order? (Yes/No): ").strip().lower()
+        if confirmation == "yes":
+            self.generate_receipt()
+        else:
+            print("Order not confirmed.")
+
+    def generate_receipt(self):
+        if not self.order_list:
+            print("No items in the order to generate a receipt.")
+            return
+        print("\nReceipt:")
+        self.display_order_summary()
+        print("Payment options: Credit Card, Cash, Digital Wallet")
+        payment_method = input("Select payment method: ").strip()
+        print(f"Payment received via {payment_method}. Order confirmed.")
+
+        receipt_choice = input("Would you like a digital or printed receipt? (Digital/Print): ").strip().lower()
+        if receipt_choice == "digital":
+            email = input("Enter your email: ").strip()
+            self.send_digital_receipt(email)
+        else:
+            self.print_receipt()
+        self.order_status = "Completed"
+        self.log_sale(payment_method)
+        self.clear_order()
+
+    def send_digital_receipt(self, email):
+        print(f"Digital receipt sent to {email}")
+
+    def print_receipt(self):
+        print("Printing physical receipt...")
+
+    def clear_order(self):
+        self.order_list = []
+        print("Order cleared.")
+
+    def admin_login(self):
+        print("\nAdmin Login")
+        username = input("Enter Admin Username: ").strip()
+        password = input("Enter Admin Password: ").strip()
+
+        if self.validate_admin_credentials(username, password):
+            print("Welcome Admin!")
+            self.admin_menu()
+        else:
+            print("Invalid credentials.")
+
+    def validate_admin_credentials(self, username, password):
+        # For demonstration purposes, using hardcoded credentials
+        return username == "admin" and password == "password"
+
+    def admin_menu(self):
+        while True:
+            print("\nAdmin Main Menu:")
+            print("1. Update Menu")
+            print("2. Update Pricing")
+            print("3. Set Discount")
+            print("4. View Reports")
+            print("5. Exit")
+
+            admin_choice = input("Select an option: ").strip()
+
+            if admin_choice == "1":
+                self.update_menu()
+            elif admin_choice == "2":
+                self.update_pricing()
+            elif admin_choice == "3":
+                self.set_discount()
+            elif admin_choice == "4":
+                self.view_reports()
+            elif admin_choice == "5":
+                print("Exiting Admin Interface.")
+                break
+            else:
+                print("Invalid choice, please select a valid option.")
+
+    def update_menu(self):
+        print("\nCurrent Menu:")
+        self.display_menu()
+        item_name = input("Enter new item name: ").strip()
+        category = input("Enter item category: ").strip()
+        try:
+            price = float(input("Enter item price: ").strip())
+        except ValueError:
+            print("Invalid price. Please enter a number.")
+            return
+        description = input("Enter item description: ").strip()
+
+        if category not in self.menu:
+            self.menu[category] = {}
+        self.menu[category][item_name] = {"price": price, "description": description}
+        print(f"{item_name} added to the {category} category.")
+
+    def update_pricing(self):
+        item_name = input("Enter the item name to update price: ").strip()
+        for category, items in self.menu.items():
+            if item_name in items:
+                try:
+                    new_price = float(input("Enter the new price: ").strip())
+                    items[item_name]['price'] = new_price
+                    print(f"{item_name} price updated to £{new_price}.")
+                except ValueError:
+                    print("Invalid price. Please enter a number.")
+                return
+        print("Item not found in menu.")
+
+    def set_discount(self):
+        try:
+            self.discount_rate = float(input("Enter discount rate (e.g., 0.10 for 10%): ").strip())
+            self.discount_available = True
+            print(f"Discount of {self.discount_rate * 100}% set.")
+        except ValueError:
+            print("Invalid discount rate.")
+
+    def view_reports(self):
+        if not self.sales_log:
+            print("No sales to report.")
+            return
+
+        try:
+            num_sales = int(input("Enter the number of last sales to view: ").strip())
+            if num_sales <= 0:
+                print("Number must be positive.")
+                return
+        except ValueError:
+            print("Invalid number. Please enter a valid integer.")
+            return
+
+        last_sales = self.sales_log[-num_sales:]
+        print(f"\nLast {len(last_sales)} Sales:")
+        for idx, sale in enumerate(last_sales, start=1):
+            print(f"\nSale {idx}:")
+            print(f"Timestamp: {sale['timestamp']}")
+            print(f"Items:")
+            for item in sale['items']:
+                print(f"  - {item['name']} x {item['quantity']} @ £{item['price']:.2f} each")
+            print(f"Total Cost: £{sale['total_cost']:.2f}")
+            print(f"Payment Method: {sale['payment_method']}")
+
+        export_choice = input("Would you like to export these reports? (Yes/No): ").strip().lower()
+        if export_choice == "yes":
+            export_format = input("Select format (CSV/PDF): ").strip().upper()
+            if export_format in ["CSV", "PDF"]:
+                self.export_report(last_sales, export_format)
+            else:
+                print("Invalid format selected.")
+        else:
+            print("Exiting reports.")
+
+    def log_sale(self, payment_method):
+        sale = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "items": self.order_list.copy(),
+            "total_cost": self.calculate_total_cost(),
+            "payment_method": payment_method
+        }
+        self.sales_log.append(sale)
+        print("Sale logged successfully.")
+
+    def export_report(self, sales, format):
+        filename = f"sales_report.{format.lower()}"
+        try:
+            if format == "CSV":
+                import csv
+                with open(filename, mode='w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Timestamp", "Item Name", "Quantity", "Price", "Total Cost", "Payment Method"])
+                    for sale in sales:
+                        for item in sale['items']:
+                            writer.writerow([
+                                sale['timestamp'],
+                                item['name'],
+                                item['quantity'],
+                                f"£{item['price']:.2f}",
+                                f"£{sale['total_cost']:.2f}",
+                                sale['payment_method']
+                            ])
+                print(f"Report exported successfully as {filename}.")
+            elif format == "PDF":
+                from fpdf import FPDF
+
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
+                pdf.cell(200, 10, txt="Sales Report", ln=True, align='C')
+
+                for idx, sale in enumerate(sales, start=1):
+                    pdf.cell(200, 10, txt=f"Sale {idx}:", ln=True)
+                    pdf.cell(200, 10, txt=f"Timestamp: {sale['timestamp']}", ln=True)
+                    pdf.cell(200, 10, txt="Items:", ln=True)
+                    for item in sale['items']:
+                        pdf.cell(200, 10, txt=f"  - {item['name']} x {item['quantity']} @ £{item['price']:.2f} each",
+                                 ln=True)
+                    pdf.cell(200, 10, txt=f"Total Cost: £{sale['total_cost']:.2f}", ln=True)
+                    pdf.cell(200, 10, txt=f"Payment Method: {sale['payment_method']}", ln=True)
+                    pdf.cell(200, 10, txt="", ln=True)  # Empty line for spacing
+
+                pdf.output(filename)
+                print(f"Report exported successfully as {filename}.")
+        except Exception as e:
+            print(f"Failed to export report: {e}")
+
+    def leave_feedback(self):
+        print("\nWe value your feedback!")
+        feedback = input("Please share your feedback: ").strip()
+        self.feedback_log.append({
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "feedback": feedback
+        })
+        print("Thank you for your feedback!")
+        feedback_discount = input("Would you like a 5% discount on your next purchase? (Yes/No): ").strip().lower()
+        if feedback_discount == "yes":
+            self.discount_rate = 0.05
+            self.discount_available = True
+            print("A 5% discount has been applied to your next order!")
+
+
+# Run the system
+system = QuickBiteOrderingSystem()
+system.main_menu()
